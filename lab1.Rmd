@@ -163,5 +163,91 @@ dim(dataset_clean)
 
 
 ```
+7.Estudie si es posible hacer transformaciones en las variables categóricas para incluirlas en el PCA,
+¿valdrá la pena?
+Considero que si vale la pena hacer el PCA, pues la cantidad de variables categóricas no es demasiado grande,
+por lo tanto la estrategia escogida fuel el One-hot Encoding para tener datos más visuales al realizar el PCA.
+```{r}
 
+
+# Variables categóricas seleccionadas para el One-Hot Encoding
+categorical_vars_for_encoding <- c("Smokes", "Hormonal.Contraceptives", "IUD", "STDs", "Dx")
+
+# Convertir las variables seleccionadas en factores antes del One-Hot Encoding
+for (var in categorical_vars_for_encoding) {
+  dataset[[var]] <- as.factor(dataset[[var]])
+}
+
+# Realizar el One-Hot Encoding para las variables categóricas
+dataset_encoded <- dataset
+for (var in categorical_vars_for_encoding) {
+  encoded_var <- as.data.frame(t(model.matrix(~ 0 + dataset[[var]])))
+  colnames(encoded_var) <- paste0(var, "_", colnames(encoded_var)[-1])
+  dataset_encoded <- cbind(dataset_encoded, encoded_var)
+}
+
+# Eliminar las variables categóricas originales después del One-Hot Encoding
+dataset_encoded <- dataset_encoded[, !(names(dataset) %in% categorical_vars_for_encoding)]
+
+# Realizar el PCA con las variables resultantes del One-Hot Encoding
+pca_result <- PCA(dataset_encoded, graph = FALSE)
+
+# Visualizar el resumen del PCA
+summary(pca_result)
+
+```
+
+8.Estudie si es conveniente hacer un Análisis de Componentes Principales
+Considero que si es conveniente pues es posible generar adecuación de datos para el PCA, aunque este no incluirá el Hot-one encoding previo  por ser variables binarias.
+```{r}
+# Seleccionar solo las variables numéricas para el análisis de PCA
+numerical_vars <- names(dataset)[sapply(dataset, is.numeric)]
+dataset_numeric <- dataset[, numerical_vars]
+
+# Realizar el análisis de KMO y el Test de Esfericidad de Bartlett
+kmo_result <- KMO(dataset_numeric)
+bartlett_test <- bartlett.test(dataset_numeric)
+
+# Imprimir los resultados
+print("Índice KMO:")
+print(kmo_result$MSA / (kmo_result$MSA + kmo_result$MSR))
+
+print("\nTest de Esfericidad de Bartlett:")
+print(bartlett_test$p.value)
+
+# Realizar el PCA con las variables numéricas
+pca_result <- PCA(dataset_numeric, graph = FALSE)
+
+# Visualizar el resumen del PCA
+summary(pca_result)
+
+```
+
+9.Obtenga reglas de asociación interesantes del dataset
+```{r}
+# Copiar el dataset original para trabajar con él
+dataset_association <- dataset
+
+# Discretizar las variables numéricas con el método de corte en intervalos iguales
+num_bins <- 5
+for (var in numerical_vars) {
+  dataset_association[[var]] <- cut(dataset[[var]], num_bins, labels = FALSE)
+}
+
+# Convertir las variables categóricas en factores para el análisis de reglas de asociación
+dataset_association <- lapply(dataset_association, as.factor)
+
+# Generar reglas de asociación con diferentes niveles de confianza y soporte
+min_support <- c(0.1, 0.05, 0.01)
+min_confidence <- c(0.6, 0.7, 0.8)
+
+for (support in min_support) {
+  for (confidence in min_confidence) {
+    rules <- apriori(dataset_association, parameter = list(supp = support, conf = confidence))
+    cat("\nRules with Support:", support, "and Confidence:", confidence, "\n")
+    inspect(rules)
+  }
+}
+
+```
 
