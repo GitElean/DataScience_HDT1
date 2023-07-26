@@ -14,6 +14,9 @@ library(readr)
 library(ggplot2)
 library(dplyr)
 library(corrplot)
+library(FactoMineR)
+library(arules)
+library(stats)
 ```
 1. Analisis exploratorio rapido
 
@@ -92,3 +95,73 @@ print(correlation_matrix)
 corrplot(correlation_matrix, method = "color", type = "upper", tl.cex = 0.7)
 
 ```
+
+5. Utilice las variables categóricas, haga tablas de frecuencia
+```{r}
+# Lista de variables categóricas
+categorical_vars <- c("Smokes", "Hormonal.Contraceptives", "IUD",
+                      "STDs", "STDs.condylomatosis", "STDs.cervical.condylomatosis",
+                      "STDs.vaginal.condylomatosis", "STDs.vulvo.perineal.condylomatosis",
+                      "STDs.syphilis", "STDs.pelvic.inflammatory.disease",
+                      "STDs.genital.herpes", "STDs.molluscum.contagiosum",
+                      "STDs.AIDS", "STDs.HIV", "STDs.Hepatitis.B", "STDs.HPV",
+                      "Dx.Cancer", "Dx.CIN", "Dx.HPV", "Dx", "Hinselmann", "Schiller",
+                      "Citology", "Biopsy")
+
+# Crear tablas de frecuencia y proporciones para cada variable categórica
+freq_tables <- lapply(categorical_vars, function(var) {
+  freq <- table(dataset[[var]], useNA = "always")
+  prop <- prop.table(freq)
+  data.frame(Category = c(names(freq), "NA"),
+             Frequency = c(as.vector(freq), sum(is.na(dataset[[var]]))),
+             Proportion = c(as.vector(prop), sum(is.na(dataset[[var]])) / nrow(dataset)))
+})
+
+# Visualizar las tablas de frecuencia y proporciones
+for (i in seq_along(freq_tables)) {
+  cat("Variable:", categorical_vars[i], "\n")
+  print(freq_tables[[i]])
+  cat("\n")
+}
+
+# Variables categóricas con menos de 10 categorías para visualización
+categorical_vars_for_plot <- c("Smokes", "Hormonal.Contraceptives", "IUD", "STDs", "Dx")
+
+# Gráficos de barras para las variables categóricas seleccionadas
+for (var in categorical_vars_for_plot) {
+  ggplot(dataset, aes(x = !!as.name(var), fill = !!as.name(var))) +
+    geom_bar() +
+    labs(title = paste("Bar Plot of", var), x = var, y = "Count") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+```
+
+
+6.Determine el comportamiento a seguir con los valores faltante
+```{r}
+# Calcular el porcentaje de valores faltantes para cada variable
+missing_percent <- colSums(is.na(dataset)) / nrow(dataset) * 100
+
+# Crear un data.frame para mostrar el porcentaje de valores faltantes
+missing_data <- data.frame(Variable = names(missing_percent),
+                           Missing_Percent = missing_percent)
+
+# Ordenar de mayor a menor porcentaje de valores faltantes
+missing_data <- missing_data[order(-missing_data$Missing_Percent), ]
+
+print(missing_data)
+
+```
+La estrategia que se usará será eliminar los valores faltantes, pues el porcentaje es muy pequeño.
+```{r}
+# Eliminar observaciones con valores faltantes
+dataset_clean <- dataset[complete.cases(dataset), ]
+
+# Verificar el nuevo tamaño del dataset después de eliminar observaciones con valores faltantes
+dim(dataset_clean)
+
+
+```
+
+
